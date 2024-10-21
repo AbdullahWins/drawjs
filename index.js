@@ -18,8 +18,8 @@ function calculateChancePrize(matches) {
 // Function to simulate the game
 function simulateGame(ticketNumbers, totalSales) {
   console.log("simulateGame started");
-  const prizeThreshold = totalSales * 0.15; // Maximum allowed prize (15% of sales)
-  const minPrizeThreshold = totalSales * 0.1; // Minimum allowed prize (10% of sales)
+  const prizeThreshold = totalSales * 0.45; // Maximum allowed prize (15% of sales)
+  const minPrizeThreshold = totalSales * 0.75; // Minimum allowed prize (10% of sales)
   const awardRange = `Prize Range: AED ${minPrizeThreshold} to AED ${prizeThreshold}`;
 
   let totalPrizeDistributed = 0;
