@@ -2,14 +2,15 @@ const fs = require("fs");
 
 const CONFIG = {
   TICKET_PRICE: 5,
-  SHARING_PERCENTAGE_LOW: 0.4, // 40% of total sales
-  SHARING_PERCENTAGE_HIGH: 0.75, // 75% of total sales
+  SHARING_PERCENTAGE_LOW: 0.45, // 45% of total sales
+  SHARING_PERCENTAGE_HIGH: 0.46, // 65% of total sales
   PRIZE_TIERS: [
-    { matches: 4, prize: 50000 }, // Fixed 50,000 AED prize for 4 matches
+    { matches: 4, prize: 10000 }, // Fixed 50,000 AED prize for 4 matches
     { matches: 3, prize: 5000 }, // Fixed 5,000 AED prize for 3 matches
     { matches: 2, prize: 10 }, // Fixed 10 AED prize for 2 matches
   ],
   MAX_MATCHES: 4,
+  MAX_ATTEMPTS: 100,
 };
 
 function readTicketsFromFile(filePath) {
@@ -175,10 +176,9 @@ function simulateGame(ticketNumbers) {
   let winners = [];
   let winningNumber = null;
   let attempts = 0;
-  const MAX_ATTEMPTS = 1000;
   const previousWinningNumbers = [];
 
-  while (attempts < MAX_ATTEMPTS) {
+  while (attempts < CONFIG.MAX_ATTEMPTS) {
     attempts++;
     winningNumber = generateWinningTicket(
       ticketNumbers,
@@ -234,7 +234,7 @@ function simulateGame(ticketNumbers) {
   }
 
   throw new Error(
-    `Could not find valid distribution after ${MAX_ATTEMPTS} attempts`
+    `Could not find valid distribution after ${CONFIG.MAX_ATTEMPTS} attempts`
   );
 }
 
