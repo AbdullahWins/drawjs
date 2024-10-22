@@ -1,3 +1,5 @@
+const fs = require("fs");
+
 const percentage = 70;
 
 // block generator
@@ -38,6 +40,9 @@ const generateToken = (amountOfToken = 100) => {
       chanceOneNumberMatchPrize: 10,
     });
   }
+
+  //save tokens to a file
+  fs.writeFileSync("./fourSix/tokens.json", JSON.stringify([...tokens], null, 2));
 
   return [...tokens];
 };

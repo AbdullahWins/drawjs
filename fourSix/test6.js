@@ -1,4 +1,4 @@
-import fs from "fs";
+const fs = require("fs");
 
 const percentage = 70;
 
@@ -62,7 +62,7 @@ const limitedPercentageOfSoldAmount = (
 const ticketsString = tickets.map((token) => `${token.token}`).join("\n");
 
 // Write tokens to a file
-fs.writeFile("tickets.txt", ticketsString, (err) => {
+fs.writeFile("./fourSix/tickets-6.txt", ticketsString, (err) => {
   if (err) throw err;
   console.log("Tickets have been saved to tickets.txt");
 });

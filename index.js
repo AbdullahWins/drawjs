@@ -1,192 +1,247 @@
 const fs = require("fs");
 
-// Constants
-const TICKET_PRICE = 5; // Product price
+const CONFIG = {
+  TICKET_PRICE: 5,
+  SHARING_PERCENTAGE_LOW: 0.4, // 40% of total sales
+  SHARING_PERCENTAGE_HIGH: 0.75, // 75% of total sales
+  PRIZE_TIERS: [
+    { matches: 4, prize: 50000 }, // Fixed 50,000 AED prize for 4 matches
+    { matches: 3, prize: 5000 }, // Fixed 5,000 AED prize for 3 matches
+    { matches: 2, prize: 10 }, // Fixed 10 AED prize for 2 matches
+  ],
+  MAX_MATCHES: 4,
+};
 
-// Function to calculate the prize based on matching numbers
-function calculateChancePrize(matches) {
-  switch (matches) {
-    case 4:
-      return TICKET_PRICE * 1000; // 3 correct numbers
-    case 3:
-      return TICKET_PRICE * 2; // 2 correct numbers
-    default:
-      return 0; // no prize
+function readTicketsFromFile(filePath) {
+  const fileContent = fs.readFileSync(filePath, "utf-8");
+  let tickets;
+  try {
+    tickets = JSON.parse(fileContent).map((ticket) => ticket.map(Number));
+  } catch (error) {
+    console.error("Error parsing ticket file:", error);
+    tickets = [];
   }
+  return tickets;
 }
 
-// Function to simulate the game
-function simulateGame(ticketNumbers, totalSales) {
-  console.log("simulateGame started");
-  const prizeThreshold = totalSales * 0.45; // Maximum allowed prize (15% of sales)
-  const minPrizeThreshold = totalSales * 0.75; // Minimum allowed prize (10% of sales)
-  const awardRange = `Prize Range: AED ${minPrizeThreshold} to AED ${prizeThreshold}`;
-
-  let totalPrizeDistributed = 0;
-  let winners = [];
-  let winningNumber = null;
-
-  // Analyze number frequency
-  const { numberFrequency, frequencyMap } =
-    analyzeNumberFrequency(ticketNumbers);
-
-  // Generate a valid winning number
-  while (winningNumber === null) {
-    winningNumber = generateWinningTicket(numberFrequency);
-
-    // Calculate prize distribution
-    winners = ticketNumbers.map((ticket) => {
-      const matches = countMatchingSlots(ticket, winningNumber); // Count how many slots match
-      const prize = calculateChancePrize(matches);
-      return { ticket, matches, prize };
-    });
-
-    // Filter out winners with zero prize
-    winners = winners.filter((winner) => winner.prize > 0);
-    totalPrizeDistributed = winners.reduce(
-      (sum, winner) => sum + winner.prize,
-      0
-    );
-
-    // Check if the total prize is within the acceptable range
-    if (
-      totalPrizeDistributed < minPrizeThreshold ||
-      totalPrizeDistributed > prizeThreshold
-    ) {
-      console.log("Prize distribution out of bounds. Retrying...");
-      console.log("winningNumber", winningNumber);
-      console.log("totalPrizeDistributed", totalPrizeDistributed);
-      console.log("minPrizeThreshold", minPrizeThreshold);
-      console.log("prizeThreshold", prizeThreshold);
-      winningNumber = null; // Reset if prize distribution is out of bounds
-    }
-  }
-  console.log("simulateGame end");
-
-  return {
-    winningNumber,
-    totalPrizeDistributed,
-    winners,
-    awardRange,
-    frequencyMap,
-  };
+function calculatePrize(matches) {
+  const tier = CONFIG.PRIZE_TIERS.find((t) => t.matches === matches);
+  return tier ? tier.prize : 0; // Return fixed prize for the tier
 }
 
-// Function to analyze the frequency of numbers in tickets
-function analyzeNumberFrequency(ticketNumbers) {
-  const frequencyMap = new Map();
-
-  // Count occurrences of each number
-  ticketNumbers.forEach((ticket) => {
-    ticket.forEach((number) => {
-      frequencyMap.set(number, (frequencyMap.get(number) || 0) + 1);
-    });
-  });
-
-  // Create an array for all numbers 1-99
-  const allNumbers = Array.from({ length: 99 }, (_, i) => i + 1);
-
-  // Find most used and least used numbers
-  const sortedFrequencies = [...frequencyMap.entries()].sort(
-    (a, b) => b[1] - a[1]
-  ); // Sort by frequency (descending)
-
-  const mostUsedNumbers = sortedFrequencies
-    .slice(0, 5)
-    .map(([number, count]) => ({ number, count }));
-  const leastUsedNumbers = sortedFrequencies
-    .slice(-5)
-    .map(([number, count]) => ({ number, count }));
-
-  // Find not used numbers
-  const usedNumbers = new Set(frequencyMap.keys());
-  const notUsedNumbers = allNumbers.filter(
-    (number) => !usedNumbers.has(number)
-  );
-
-  // Log results
-  console.log("Most Used Numbers:", mostUsedNumbers);
-  console.log("Least Used Numbers:", leastUsedNumbers);
-  console.log("Not Used Numbers:", notUsedNumbers);
-
-  return {
-    numberFrequency: sortedFrequencies.map((entry) => entry[0]),
-    frequencyMap,
-  };
-}
-
-// Function to generate a unique winning ticket based on frequency
-function generateWinningTicket(numberFrequency) {
-  console.log("numberFrequency", numberFrequency);
-  const winningTicket = [];
-  const usedNumbers = new Set();
-
-  // Start with the least used numbers
-  for (let i = 0; i < Math.min(3, numberFrequency.length); i++) {
-    winningTicket.push(numberFrequency[i]);
-    usedNumbers.add(numberFrequency[i]);
-  }
-
-  // Fill in the remaining numbers with unused numbers
-  while (winningTicket.length < 5) {
-    const randomNumber = Math.floor(Math.random() * 99) + 1; // Generate a number between 1 and 99
-    if (
-      !usedNumbers.has(randomNumber) &&
-      !winningTicket.includes(randomNumber)
-    ) {
-      winningTicket.push(randomNumber);
-      usedNumbers.add(randomNumber);
-    }
-  }
-
-  return winningTicket;
-}
-
-// Function to count matching numbers regardless of position
 function countMatchingSlots(ticket, winningNumber) {
   const ticketSet = new Set(ticket);
-  const winningSet = new Set(winningNumber);
   let matches = 0;
-
-  // Count matches based on the intersection of sets
-  winningSet.forEach((number) => {
+  winningNumber.forEach((number) => {
     if (ticketSet.has(number)) {
       matches++;
     }
   });
-
-  return matches;
+  return Math.min(matches, CONFIG.MAX_MATCHES);
 }
 
-// Function to read tickets from a text file
-function readTicketsFromFile(filePath) {
-  const fileContent = fs.readFileSync(filePath, "utf-8");
-  let tickets;
+function analyzeTicketNumbers(tickets) {
+  const frequencyMap = new Map();
+  tickets.forEach((ticket) => {
+    ticket.forEach((num) => {
+      frequencyMap.set(num, (frequencyMap.get(num) || 0) + 1);
+    });
+  });
 
-  try {
-    tickets = JSON.parse(fileContent).map((ticket) => ticket.map(Number)); // Convert strings to numbers
-  } catch (error) {
-    console.error("Error parsing ticket file:", error);
-    tickets = []; // Return an empty array in case of error
+  return Array.from(frequencyMap.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([num, freq]) => ({ number: num, frequency: freq }));
+}
+
+function generateWinningTicket(ticketNumbers, previousWinningNumbers) {
+  const numberAnalysis = analyzeTicketNumbers(ticketNumbers);
+
+  // Create clusters of numbers that appear together
+  const numberClusters = [];
+  for (let i = 0; i < ticketNumbers.length; i++) {
+    for (let j = i + 1; j < Math.min(i + 100, ticketNumbers.length); j++) {
+      const commonNumbers = ticketNumbers[i].filter((num) =>
+        ticketNumbers[j].includes(num)
+      );
+      if (commonNumbers.length >= 2) {
+        numberClusters.push(commonNumbers);
+      }
+    }
   }
 
-  return tickets;
+  // Sort clusters by size
+  numberClusters.sort((a, b) => b.length - a.length);
+
+  // Strategy: Mix between common numbers and random numbers
+  const winningTicket = new Set();
+
+  // Maybe use a cluster (50% chance)
+  if (numberClusters.length > 0 && Math.random() < 0.5) {
+    const randomCluster =
+      numberClusters[
+        Math.floor(Math.random() * Math.min(10, numberClusters.length))
+      ];
+    randomCluster.slice(0, 2).forEach((num) => winningTicket.add(num));
+  }
+
+  // Add some common numbers
+  while (winningTicket.size < 3) {
+    if (Math.random() < 0.6) {
+      // 60% chance to pick from common numbers
+      const randomIndex = Math.floor(
+        Math.random() * Math.min(20, numberAnalysis.length)
+      );
+      winningTicket.add(numberAnalysis[randomIndex].number);
+    } else {
+      const randomNumber = Math.floor(Math.random() * 99) + 1;
+      winningTicket.add(randomNumber);
+    }
+  }
+
+  // Fill remaining slots with random numbers
+  while (winningTicket.size < 5) {
+    const randomNumber = Math.floor(Math.random() * 99) + 1;
+    winningTicket.add(randomNumber);
+  }
+
+  const result = Array.from(winningTicket);
+
+  // Check if too similar to previous winning numbers
+  const isTooSimilar = previousWinningNumbers.some((prev) => {
+    const matches = countMatchingSlots(prev, result);
+    return matches >= CONFIG.MAX_MATCHES;
+  });
+
+  if (isTooSimilar) {
+    return generateWinningTicket(ticketNumbers, previousWinningNumbers);
+  }
+
+  return result;
 }
 
-// Main execution
-const ticketNumbers = readTicketsFromFile("tickets.txt"); // Read tickets from file
-const totalSales = ticketNumbers.length * TICKET_PRICE; // Total sales amount (e.g., AED 50,000)
+function analyzePrizeDistribution(winners, totalSales) {
+  const matchCounts = {
+    4: winners.filter((w) => w.matches === 4).length,
+    3: winners.filter((w) => w.matches === 3).length,
+    2: winners.filter((w) => w.matches === 2).length,
+  };
 
-if (ticketNumbers.length === 0) {
-  console.error("No valid tickets found. Exiting simulation.");
-  process.exit(1); // Exit if there are no valid tickets
+  // Calculate total prize for each category
+  const totalPrizeDistributed = Object.keys(matchCounts).reduce(
+    (total, key) => {
+      const matches = parseInt(key);
+      const winnersCount = matchCounts[key];
+      const tier = CONFIG.PRIZE_TIERS.find((t) => t.matches === matches);
+      return total + (tier ? tier.prize * winnersCount : 0);
+    },
+    0
+  );
+
+  const totalTickets = totalSales / CONFIG.TICKET_PRICE;
+  const matchRates = {
+    4: matchCounts[4] / totalTickets,
+    3: matchCounts[3] / totalTickets,
+    2: matchCounts[2] / totalTickets,
+  };
+
+  return {
+    matchCounts,
+    matchRates,
+    totalPrizeDistributed,
+    prizePercentage: (totalPrizeDistributed / totalSales) * 100,
+  };
 }
 
-const gameResult = simulateGame(ticketNumbers, totalSales);
+function isPrizeDistributionValid(totalPrize, totalSales) {
+  const minPrize = totalSales * CONFIG.SHARING_PERCENTAGE_LOW;
+  const maxPrize = totalSales * CONFIG.SHARING_PERCENTAGE_HIGH;
+  return totalPrize >= minPrize && totalPrize <= maxPrize;
+}
 
-// Log the results
-console.log("Winners:", gameResult.winners);
-console.log(`Winning Number: ${gameResult.winningNumber}`);
-console.log(`Total Prize Distributed: AED ${gameResult.totalPrizeDistributed}`);
-console.log("Winner Count:", gameResult.winners.length);
-console.log("Award Range:", gameResult.awardRange);
+function simulateGame(ticketNumbers) {
+  console.log("Simulation started");
+
+  const totalSales = ticketNumbers.length * CONFIG.TICKET_PRICE;
+  const minPrize = totalSales * CONFIG.SHARING_PERCENTAGE_LOW;
+  const maxPrize = totalSales * CONFIG.SHARING_PERCENTAGE_HIGH;
+
+  console.log("\nConfiguration:");
+  console.log(`Maximum matches allowed: ${CONFIG.MAX_MATCHES}`);
+  console.log(`Total Sales: AED ${totalSales}`);
+  console.log(
+    `Prize Range: AED ${minPrize.toFixed(2)} to AED ${maxPrize.toFixed(2)}`
+  );
+
+  let winners = [];
+  let winningNumber = null;
+  let attempts = 0;
+  const MAX_ATTEMPTS = 1000;
+  const previousWinningNumbers = [];
+
+  while (attempts < MAX_ATTEMPTS) {
+    attempts++;
+    winningNumber = generateWinningTicket(
+      ticketNumbers,
+      previousWinningNumbers
+    );
+    previousWinningNumbers.push(winningNumber);
+
+    winners = ticketNumbers.map((ticket) => {
+      const matches = countMatchingSlots(ticket, winningNumber);
+      return {
+        ticket,
+        matches,
+        prize: calculatePrize(matches), // Pass only matches for prize calculation
+        ticketString: ticket.join(", "),
+      };
+    });
+
+    winners = winners.filter((winner) => winner.prize > 0);
+
+    const analysis = analyzePrizeDistribution(winners, totalSales);
+
+    // Log the attempt results
+    console.log(`\nAttempt ${attempts}:`);
+    console.log("Winning Numbers:", winningNumber.join(", "));
+    console.log(
+      "Total Prize Distributed: AED",
+      analysis.totalPrizeDistributed.toFixed(2)
+    );
+    console.log("Prize Distribution:", analysis);
+
+    if (isPrizeDistributionValid(analysis.totalPrizeDistributed, totalSales)) {
+      console.log(`\nValid distribution found after ${attempts} attempts:`);
+      console.log("Match Distribution:", analysis.matchCounts);
+      console.log(
+        "Match Rates:",
+        Object.entries(analysis.matchRates)
+          .map(([matches, rate]) => `${matches}: ${(rate * 100).toFixed(1)}%`)
+          .join(", ")
+      );
+      console.log(
+        `Prize Distribution: ${analysis.prizePercentage.toFixed(2)}% of sales`
+      );
+
+      return {
+        winningNumber,
+        totalPrizeDistributed: analysis.totalPrizeDistributed,
+        winners,
+        analysis,
+      };
+    } else {
+      console.log("Prize distribution out of bounds. Retrying...");
+    }
+  }
+
+  throw new Error(
+    `Could not find valid distribution after ${MAX_ATTEMPTS} attempts`
+  );
+}
+
+// Example usage
+try {
+  const ticketNumbers = readTicketsFromFile("tickets.txt");
+  simulateGame(ticketNumbers);
+} catch (error) {
+  console.error("Error running simulation:", error.message);
+}
